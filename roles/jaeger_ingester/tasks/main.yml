@@ -1,0 +1,104 @@
+---
+- name: Ensure jaeger group
+  ansible.builtin.group:
+    name: jaeger
+    system: true
+
+- name: Ensure jaeger user
+  ansible.builtin.user:
+    name: jaeger
+    group: jaeger
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+
+- name: Resolve Jaeger ingester architecture
+  ansible.builtin.set_fact:
+    jaeger_ingester_arch: "{{ jaeger_ingester_arch_map.get(ansible_architecture, ansible_architecture) }}"
+
+- name: Create temporary download directory
+  ansible.builtin.file:
+    path: "/tmp/jaeger-ingester-{{ jaeger_ingester_version }}"
+    state: directory
+    mode: "0755"
+
+- name: Download Jaeger release tarball
+  ansible.builtin.get_url:
+    url: "{{ jaeger_ingester_download_url }}"
+    dest: "/tmp/jaeger-ingester-{{ jaeger_ingester_version }}.tar.gz"
+    mode: "0644"
+    checksum: "{{ (jaeger_ingester_download_checksum | length > 0) | ternary(jaeger_ingester_download_checksum, omit) }}"
+
+- name: Extract Jaeger release tarball
+  ansible.builtin.unarchive:
+    src: "/tmp/jaeger-ingester-{{ jaeger_ingester_version }}.tar.gz"
+    dest: "/tmp/jaeger-ingester-{{ jaeger_ingester_version }}"
+    remote_src: true
+    creates: "/tmp/jaeger-ingester-{{ jaeger_ingester_version }}/jaeger-{{ jaeger_ingester_version }}-linux-{{ jaeger_ingester_arch }}/jaeger-ingester"
+
+- name: Install jaeger-ingester binary
+  ansible.builtin.copy:
+    src: "/tmp/jaeger-ingester-{{ jaeger_ingester_version }}/jaeger-{{ jaeger_ingester_version }}-linux-{{ jaeger_ingester_arch }}/jaeger-ingester"
+    dest: "{{ jaeger_ingester_binary_path }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure OpenSearch TLS directory
+  ansible.builtin.file:
+    path: "{{ jaeger_ingester_es_tls_ca | dirname }}"
+    state: directory
+    owner: jaeger
+    group: jaeger
+    mode: "0750"
+
+- name: Ensure Kafka TLS directory
+  ansible.builtin.file:
+    path: "{{ jaeger_ingester_kafka_tls_ca | dirname }}"
+    state: directory
+    owner: jaeger
+    group: jaeger
+    mode: "0750"
+
+- name: Copy OpenSearch CA certificate
+  ansible.builtin.copy:
+    src: "{{ jaeger_ingester_opensearch_ca_src }}"
+    dest: "{{ jaeger_ingester_es_tls_ca }}"
+    owner: jaeger
+    group: jaeger
+    mode: "0640"
+
+- name: Copy Kafka CA certificate
+  ansible.builtin.copy:
+    src: "{{ jaeger_ingester_kafka_ca_src }}"
+    dest: "{{ jaeger_ingester_kafka_tls_ca }}"
+    owner: jaeger
+    group: jaeger
+    mode: "0640"
+
+- name: Render jaeger-ingester environment file
+  ansible.builtin.template:
+    src: jaeger-ingester.env.j2
+    dest: "{{ jaeger_ingester_env_file }}"
+    owner: root
+    group: jaeger
+    mode: "0640"
+  notify: Restart jaeger-ingester
+
+- name: Render jaeger-ingester systemd unit
+  ansible.builtin.template:
+    src: jaeger-ingester.service.j2
+    dest: "/etc/systemd/system/{{ jaeger_ingester_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart jaeger-ingester
+
+- name: Ensure jaeger-ingester service is enabled and started
+  ansible.builtin.systemd:
+    name: "{{ jaeger_ingester_service_name }}"
+    enabled: true
+    state: started
