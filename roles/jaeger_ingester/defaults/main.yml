@@ -1,0 +1,53 @@
+---
+# Jaeger ingester version and download settings
+jaeger_ingester_version: "1.52.0"
+
+jaeger_ingester_arch_map:
+  x86_64: amd64
+  aarch64: arm64
+
+jaeger_ingester_download_base_url: "https://github.com/jaegertracing/jaeger/releases/download/v{{ jaeger_ingester_version }}"
+jaeger_ingester_download_url: "{{ jaeger_ingester_download_base_url }}/jaeger-{{ jaeger_ingester_version }}-linux-{{ jaeger_ingester_arch }}.tar.gz"
+
+# Optional checksum for the release tarball (set to validate downloads)
+jaeger_ingester_download_checksum: ""
+
+# Paths
+jaeger_ingester_binary_path: /usr/local/bin/jaeger-ingester
+jaeger_ingester_env_file: /etc/default/jaeger-ingester
+jaeger_ingester_service_name: jaeger-ingester
+
+# TLS certificate sources (from role files/ directory)
+# Provide real certificates under roles/jaeger_ingester/files/
+jaeger_ingester_opensearch_ca_src: opensearch/ca.pem
+jaeger_ingester_kafka_ca_src: kafka/ca.pem
+
+# OpenSearch settings
+jaeger_ingester_es_urls: "https://opensearch.example.com:9200"
+jaeger_ingester_es_username: ""
+jaeger_ingester_es_password: "" # Use Ansible Vault for secrets
+jaeger_ingester_es_index_prefix: jaeger
+jaeger_ingester_es_version: "7"
+jaeger_ingester_es_tls_enabled: "true"
+jaeger_ingester_es_tls_ca: /opt/opensearch-tls/ca.pem
+jaeger_ingester_es_tls_skip_host_verify: "true"
+jaeger_ingester_es_sniff: "false"
+jaeger_ingester_es_healthcheck: "false"
+
+# Kafka consumer settings
+jaeger_ingester_kafka_authentication: plaintext
+jaeger_ingester_kafka_brokers: "kafka.example.com:9092"
+jaeger_ingester_kafka_topic: jaeger-spans
+jaeger_ingester_kafka_client_id: portal-monitoring-jaeger-kvo-cl1-dev
+jaeger_ingester_kafka_group_id: portal-monitoring-jaeger-kvo-cl1-dev
+jaeger_ingester_kafka_version: 2.8.1
+jaeger_ingester_kafka_plaintext_mechanism: SCRAM-SHA-256
+jaeger_ingester_kafka_username: "" # Use Ansible Vault for secrets
+jaeger_ingester_kafka_password: "" # Use Ansible Vault for secrets
+jaeger_ingester_kafka_tls_enabled: "true"
+jaeger_ingester_kafka_tls_skip_host_verify: "true"
+jaeger_ingester_kafka_tls_ca: /etc/jaeger/kafka/ca.pem
+
+# Runtime settings
+jaeger_ingester_parallelism: "64"
+jaeger_ingester_log_level: debug

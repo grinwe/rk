@@ -1,0 +1,17 @@
+[Unit]
+Description=Jaeger Ingester
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jaeger
+Group=jaeger
+EnvironmentFile=-{{ jaeger_ingester_env_file }}
+ExecStart={{ jaeger_ingester_binary_path }}
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
